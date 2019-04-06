@@ -4,10 +4,12 @@ import scala.concurrent.{ Await, ExecutionContext, Future }
 import scala.concurrent.duration.Duration
 import scala.util.{ Failure, Success }
 
-import akka.actor.{ ActorRef, ActorSystem }
+import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.server.Route
 import akka.stream.ActorMaterializer
+
+import Integer.parseInt
 
 object QuickstartServer extends App with Routes {
 
@@ -16,8 +18,10 @@ object QuickstartServer extends App with Routes {
   implicit val executionContext: ExecutionContext = system.dispatcher
 
   lazy val routes: Route = userRoutes
+  lazy val port = Option(System.getProperty("http.port")).map(parseInt).getOrElse(8080)
+  lazy val interface = Option(System.getProperty("http.interface")).getOrElse("localhost")
 
-  val serverBinding: Future[Http.ServerBinding] = Http().bindAndHandle(routes, "localhost", 8080)
+  val serverBinding: Future[Http.ServerBinding] = Http().bindAndHandle(routes, interface, port)
 
   serverBinding.onComplete {
     case Success(bound) =>
