@@ -1,8 +1,9 @@
 package me.gladwell.cisco.aws
 
 import akka.http.scaladsl.Http
+import akka.http.scaladsl.model.headers.{ Authorization, BasicHttpCredentials }
 import akka.http.scaladsl.model.{ HttpRequest, StatusCodes }
-import org.scalatest.{ BeforeAndAfterAll, Matchers, AsyncWordSpec }
+import org.scalatest.{ AsyncWordSpec, BeforeAndAfterAll, Matchers }
 
 class IntegrationSpec extends AsyncWordSpec with Matchers with BeforeAndAfterAll {
 
@@ -17,19 +18,22 @@ class IntegrationSpec extends AsyncWordSpec with Matchers with BeforeAndAfterAll
   }
 
   private def get(path: String = "") = {
-    Http().singleRequest(HttpRequest(uri = api.uri + path))
+    val request = HttpRequest(uri = api.uri + path).addHeader(Authorization(BasicHttpCredentials("key-id", "secure-key")))
+    Http().singleRequest(request)
   }
 
   "should return status code" in {
     for {
       response <- get("regions/eu-west-1/instances")
-    } yield assert(response.status == StatusCodes.Unauthorized)
+    } yield assert(response.status == StatusCodes.InternalServerError)
   }
 
   "should return JSON" in {
     for {
       response <- get("regions/eu-west-1/instances")
-    } yield assert(response.entity.contentType.mediaType.toString == "application/json")
+    } yield {
+      assert(response.entity.contentType.mediaType.toString == "application/json")
+    }
   }
 
 }

@@ -20,30 +20,30 @@ trait Routes extends JsonSupport {
 
   val instances: Instances
 
-  private def authenticator(credentials: Credentials): Option[Unit] = credentials match {
-    case p @ Credentials.Provided(id) => Some(id)
-    case _ => None
+  // TODO for added security verify we're using TLS here
+  def authenticate(subRoute: AwsKey => Route) = {
+
+    def authenticator(credentials: Credentials): Option[String] = credentials match {
+      case Credentials.Provided(id) => Some(id)
+      case _ => None
+    }
+
+    authenticateBasic(realm = "cisco-aws-ec2-api", authenticator) { _ =>
+      extractCredentials {
+        case Some(BasicHttpCredentials(id, key)) => subRoute(AwsKey(id, key))
+        case None => complete(Unauthorized, ApiError("invalid credentials"))
+      }
+    }
+
   }
 
   lazy val userRoutes: Route =
     path("regions" / Segment / "instances") { region =>
-      // TODO for added security verify we're using TLS here
-      authenticateBasic(realm = "secure site", authenticator) { _ =>
-        extractCredentials { credentials =>
-          get {
-            credentials match {
-              case Some(BasicHttpCredentials(id, key)) => {
-                implicit val awsKey = AwsKey(id, key)
-                onComplete(instances.forRegion(region)) {
-                  case Success(instances) => complete(instances)
-                  case Failure(ex) => {
-                    ex.printStackTrace()
-                    complete(InternalServerError, ApiError(ex.getMessage()))
-                  }
-                }
-              }
-              case None => complete(Unauthorized, ApiError("invalid credentials"))
-            }
+      authenticate { implicit key =>
+        get {
+          onComplete(instances.forRegion(region)) {
+            case Success(instances) => complete(instances)
+            case Failure(ex) => complete(InternalServerError, ApiError(ex.getMessage()))
           }
         }
       }
