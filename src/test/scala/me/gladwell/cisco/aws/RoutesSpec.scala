@@ -18,10 +18,17 @@ class RoutesSpec extends WordSpec with Matchers with ScalatestRouteTest with Rou
       Future.successful(
         Seq(
           AwsInstance(
-            name = "a-123456abcd",
+            name = "b-123456abcd",
             instanceType = "t2.medium",
             state = "running",
             az = "us-east-1b",
+            ip = "54.210.167.204",
+            privateIp = "10.20.30.40"),
+          AwsInstance(
+            name = "a-123456abcd",
+            instanceType = "t2.medium",
+            state = "running",
+            az = "eu-west-1d",
             ip = "54.210.167.204",
             privateIp = "10.20.30.40")))
 
@@ -45,19 +52,41 @@ class RoutesSpec extends WordSpec with Matchers with ScalatestRouteTest with Rou
       }
     }
 
+    "return JSON array" in {
+      request ~> addCredentials(validCredentials) ~> routes ~> check {
+        responseAs[String].parseJson shouldBe a[JsArray]
+      }
+    }
+
     "return instance" in {
       request ~> addCredentials(validCredentials) ~> routes ~> check {
-        println(responseAs[String].parseJson)
-        responseAs[String].parseJson should ===(
-          JsArray(
-            JsObject(
-              Map(
-                "name" -> JsString("a-123456abcd"),
-                "instanceType" -> JsString("t2.medium"),
-                "state" -> JsString("running"),
-                "az" -> JsString("us-east-1b"),
-                "ip" -> JsString("54.210.167.204"),
-                "privateIp" -> JsString("10.20.30.40")))))
+        val instances = responseAs[String].parseJson.asInstanceOf[JsArray].elements
+        instances should contain(
+          JsObject(
+            Map(
+              "name" -> JsString("a-123456abcd"),
+              "instanceType" -> JsString("t2.medium"),
+              "state" -> JsString("running"),
+              "az" -> JsString("eu-west-1d"),
+              "ip" -> JsString("54.210.167.204"),
+              "privateIp" -> JsString("10.20.30.40"))))
+      }
+    }
+
+    "sort by name by default" in {
+      request ~> addCredentials(validCredentials) ~> routes ~> check {
+        val instances = responseAs[String].parseJson.asInstanceOf[JsArray].elements
+        val names = instances.map(_.asInstanceOf[JsObject].fields.get("name").get.toString())
+        names should ===(names.sorted)
+      }
+    }
+
+    "sort by attribute" in {
+      val sortedRequest = HttpRequest(uri = "/regions/eu-west-1/instances?sort=az")
+      sortedRequest ~> addCredentials(validCredentials) ~> routes ~> check {
+        val instances = responseAs[String].parseJson.asInstanceOf[JsArray].elements
+        val availabilityZones = instances.map(_.asInstanceOf[JsObject].fields.get("az").get.toString())
+        availabilityZones should ===(availabilityZones.sorted)
       }
     }
 

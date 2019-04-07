@@ -18,7 +18,8 @@ class IntegrationSpec extends AsyncWordSpec with Matchers with BeforeAndAfterAll
   }
 
   private def get(path: String = "") = {
-    val request = HttpRequest(uri = api.uri + path).addHeader(Authorization(BasicHttpCredentials("key-id", "secure-key")))
+    val credentials = BasicHttpCredentials("key-id", "secure-key")
+    val request = HttpRequest(uri = api.uri + path).addHeader(Authorization(credentials))
     Http().singleRequest(request)
   }
 

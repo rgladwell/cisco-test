@@ -37,13 +37,26 @@ trait Routes extends JsonSupport {
 
   }
 
+  private def orderingFor(attribute: String)(i1: AwsInstance, i2: AwsInstance)(implicit ordering: Ordering[String]): Boolean = attribute match {
+    case "name"       => ordering.compare(i1.name, i2.name) < 0
+    case "type"       => ordering.compare(i1.instanceType, i2.instanceType) < 0
+    case "state"      => ordering.compare(i1.state, i2.state) < 0
+    case "az"         => ordering.compare(i1.az, i2.az) < 0
+    case "ip"         => ordering.compare(i1.ip, i2.ip) < 0
+    case "privateIp"  => ordering.compare(i1.privateIp, i2.privateIp) < 0
+    case _            => false
+
+  }
+
   lazy val userRoutes: Route =
     path("regions" / Segment / "instances") { region =>
       authenticate { implicit key =>
-        get {
-          onComplete(instances.forRegion(region)) {
-            case Success(instances) => complete(instances)
-            case Failure(ex) => complete(InternalServerError, ApiError(ex.getMessage()))
+        parameters('sort ? "name") { attribute =>
+          get {
+            onComplete(instances.forRegion(region)) {
+              case Success(instances) => complete(instances.sortWith(orderingFor(attribute)))
+              case Failure(ex) => complete(InternalServerError, ApiError(ex.getMessage()))
+            }
           }
         }
       }
