@@ -90,6 +90,29 @@ class RoutesSpec extends WordSpec with Matchers with ScalatestRouteTest with Rou
       }
     }
 
+    "return all results if no pagination set" in {
+      request ~> addCredentials(validCredentials) ~> routes ~> check {
+        val instances = responseAs[String].parseJson.asInstanceOf[JsArray].elements
+        instances.size should ===(2)
+      }
+    }
+
+    "limit number of results to pagination limit" in {
+      val limitedRequest = HttpRequest(uri = "/regions/eu-west-1/instances?limit=1")
+      limitedRequest ~> addCredentials(validCredentials) ~> routes ~> check {
+        val instances = responseAs[String].parseJson.asInstanceOf[JsArray].elements
+        instances.size should ===(1)
+      }
+    }
+
+    "offset results to pagination offset" in {
+      val limitedRequest = HttpRequest(uri = "/regions/eu-west-1/instances?offset=1")
+      limitedRequest ~> addCredentials(validCredentials) ~> routes ~> check {
+        val instances = responseAs[String].parseJson.asInstanceOf[JsArray].elements
+        instances.size should ===(1)
+      }
+    }
+
   }
 
 }
